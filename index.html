@@ -87,6 +87,33 @@ button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid transpare
 .host-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .host-bar .spacer{flex:1}
 
+/* Torneo */
+.vs{background:linear-gradient(135deg,var(--panel-2),var(--panel));border:1px solid var(--spot);border-radius:14px;padding:22px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:16px;align-items:center;
+  box-shadow:0 0 40px rgba(255,95,162,.12)}
+.vs .side-b{text-align:right}
+.vs .who{font-family:var(--display);font-size:clamp(20px,3.6vw,34px);line-height:1.05;color:var(--bulb);overflow-wrap:anywhere}
+.vs .what{color:var(--muted);font-size:15px;overflow-wrap:anywhere;margin-top:4px}
+.vs .mark{font-family:var(--display);font-size:clamp(30px,6vw,56px);color:var(--spot);text-shadow:0 0 18px rgba(255,95,162,.5)}
+.vs .win{margin-top:12px}
+.vs .side-b .win{display:flex;justify-content:flex-end}
+@media (max-width:520px){.vs{grid-template-columns:minmax(0,1fr)}.vs .side-b{text-align:left}.vs .side-b .win{justify-content:flex-start}.vs .mark{font-size:30px}}
+.champ{border:1px solid var(--bulb);border-radius:14px;padding:26px 22px;text-align:center;background:var(--panel);box-shadow:0 0 50px rgba(255,195,77,.15)}
+.champ .crown{font-size:13px;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.champ .who{font-family:var(--display);font-size:clamp(32px,6vw,58px);color:var(--bulb);line-height:1.05;margin:8px 0 4px;overflow-wrap:anywhere}
+.bracket-wrap{overflow-x:auto;padding-bottom:6px}
+.bracket{display:flex;gap:14px;min-width:min-content}
+.round{display:grid;gap:8px;align-content:start;width:200px;flex:none}
+.round h3{margin:0 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:600}
+.match{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.match.current{border-color:var(--spot)}
+.slot{padding:8px 10px;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.slot+.slot{border-top:1px solid var(--line)}
+.slot .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.slot.won{color:var(--ok);font-weight:800}
+.slot.lost{color:#7f6f98;text-decoration:line-through}
+.slot.bye{color:var(--muted);font-style:italic}
+
 /* Modo pantalla (#pantalla): QR + cola en grande para proyectar */
 body.screen .form-card{display:none}
 body.screen .grid{grid-template-columns:minmax(0,420px) minmax(0,1fr)}
@@ -146,15 +173,31 @@ body.screen .now .what{font-size:24px}
           <button class="btn-ghost" type="submit">Entrar</button>
           <p class="note" id="pinNote"></p>
         </form>
-        <div class="host-bar" id="hostTools" hidden>
-          <button class="btn-gold" id="nextBtn" type="button">Siguiente turno</button>
-          <span class="spacer"></span>
-          <button class="btn-ghost" id="resetBtn" type="button">Vaciar lista</button>
-          <button class="btn-ghost" id="resetConfirm" type="button" hidden>Sí, borrar todo</button>
+        <div id="hostTools" hidden style="display:grid;gap:12px">
+          <div class="host-bar">
+            <button class="btn-gold" id="nextBtn" type="button">Siguiente turno</button>
+            <span class="spacer"></span>
+            <button class="btn-ghost" id="resetBtn" type="button">Vaciar lista</button>
+            <button class="btn-ghost" id="resetConfirm" type="button" hidden>Sí, borrar todo</button>
+          </div>
+          <div class="host-bar">
+            <button class="btn-ghost" id="tStart" type="button">Iniciar torneo</button>
+            <button class="btn-ghost" id="tStartConfirm" type="button" hidden>Sí, armar llaves con los inscritos</button>
+            <button class="btn-ghost" id="tUndo" type="button" hidden>Deshacer último resultado</button>
+            <span class="spacer"></span>
+            <button class="btn-ghost" id="tEnd" type="button" hidden>Terminar torneo</button>
+            <button class="btn-ghost" id="tEndConfirm" type="button" hidden>Sí, terminar</button>
+          </div>
         </div>
       </section>
 
-      <section aria-labelledby="nowTitle">
+      <section id="tSection" hidden aria-labelledby="tTitle" style="display:grid;gap:16px">
+        <p class="label" id="tTitle" style="margin:0">Torneo</p>
+        <div id="tStage"></div>
+        <div class="bracket-wrap"><div class="bracket" id="bracket"></div></div>
+      </section>
+
+      <section aria-labelledby="nowTitle" id="nowSection">
         <p class="label" id="nowTitle">En el micrófono</p>
         <div class="now" id="now"><div class="now-empty">Cargando la lista…</div></div>
       </section>
@@ -178,6 +221,7 @@ const isHost = location.hash === "#host";
 if (isScreen) document.body.classList.add("screen");
 
 let items = [];
+let tour = null;
 let pin = "";
 let mine = new Set();
 try { mine = new Set(JSON.parse(localStorage.getItem("karaoke-mine") || "[]")); } catch (e) {}
@@ -232,7 +276,9 @@ async function load() {
     if (!r.ok) throw 0;
     const d = await r.json();
     items = d.items || [];
+    tour = d.tournament || null;
     render();
+    renderTournament();
   } catch (e) {
     if (!items.length) { $("now").replaceChildren(el("div", "now-empty", "No se pudo cargar la lista. Reintentando…")); }
   }
@@ -258,6 +304,72 @@ $("signup").addEventListener("submit", async ev => {
   } finally { $("submitBtn").disabled = false; }
 });
 
+// Torneo
+function roundName(count, idx, total) {
+  if (count === 1) return "Final";
+  if (count === 2) return "Semifinal";
+  if (count <= 4) return "Cuartos";
+  return "Ronda " + (idx + 1);
+}
+function renderTournament() {
+  const on = !!tour;
+  $("tSection").hidden = !on;
+  $("nowSection").hidden = on && tour.status === "live";
+  if (hostOn) {
+    $("tStart").hidden = on; $("tStartConfirm").hidden = true;
+    $("tUndo").hidden = !on; $("tEnd").hidden = !on;
+    if (!on) $("tEndConfirm").hidden = true;
+  }
+  if (!on) return;
+
+  const stage = $("tStage"); stage.replaceChildren();
+  const last = tour.rounds[tour.rounds.length - 1];
+  const curIdx = last.findIndex(m => !m.winner);
+
+  if (tour.status === "done" && tour.champion) {
+    const c = el("div", "champ");
+    c.append(el("div", "crown", "Campeón de la noche"), el("div", "who", tour.champion.nombre));
+    c.append(el("div", "now-empty", tour.champion.cancion + (tour.champion.artista ? " · " + tour.champion.artista : "")));
+    stage.append(c);
+  } else if (curIdx >= 0) {
+    const m = last[curIdx];
+    const vs = el("div", "vs");
+    const side = (p, key, cls) => {
+      const d = el("div", cls);
+      d.append(el("div", "who", p.nombre), el("div", "what", p.cancion + (p.artista ? " · " + p.artista : "")));
+      if (hostOn) {
+        const w = el("div", "win"); const b = el("button", "btn-gold", "Gana " + p.nombre.split(" ")[0]); b.type = "button";
+        b.onclick = () => hostAction({ action: "t-win", match: curIdx, side: key }, b);
+        w.append(b); d.append(w);
+      }
+      return d;
+    };
+    vs.append(side(m.a, "a", "side-a"), el("div", "mark", "VS"), side(m.b, "b", "side-b"));
+    const label = el("p", "label", roundName(last.length, tour.rounds.length - 1) + " · duelo " + (curIdx + 1) + " de " + last.length);
+    label.style.margin = "0 0 10px";
+    stage.append(label, vs);
+  }
+
+  const br = $("bracket"); br.replaceChildren();
+  tour.rounds.forEach((round, ri) => {
+    const col = el("div", "round");
+    col.append(el("h3", null, roundName(round.length, ri)));
+    round.forEach((m, mi) => {
+      const box = el("div", "match" + (ri === tour.rounds.length - 1 && mi === curIdx ? " current" : ""));
+      const slot = (p, key) => {
+        if (!p) return el("div", "slot bye", "Pasa directo");
+        const st = !m.winner ? "" : (m.winner === key ? " won" : " lost");
+        const s = el("div", "slot" + st); s.append(el("span", "nm", p.nombre));
+        if (m.winner === key && m.b) s.append(el("span", null, "✓"));
+        return s;
+      };
+      box.append(slot(m.a, "a"), slot(m.b, "b"));
+      col.append(box);
+    });
+    br.append(col);
+  });
+}
+
 // Anfitrión (#host)
 let hostOn = false;
 async function hostAction(body, btn) {
@@ -280,6 +392,7 @@ async function unlock() {
     try { sessionStorage.setItem("karaoke-pin", pin); } catch (e) {}
     $("pinForm").hidden = true; $("hostTools").hidden = false; $("pinNote").textContent = "";
     render();
+    renderTournament();
   }
 }
 if (isHost) {
@@ -289,6 +402,11 @@ if (isHost) {
   $("nextBtn").onclick = () => hostAction({ action: "next" }, $("nextBtn"));
   $("resetBtn").onclick = () => { $("resetConfirm").hidden = false; };
   $("resetConfirm").onclick = async () => { await hostAction({ action: "reset" }, $("resetConfirm")); $("resetConfirm").hidden = true; };
+  $("tStart").onclick = () => { $("tStartConfirm").hidden = false; };
+  $("tStartConfirm").onclick = async () => { await hostAction({ action: "t-start" }, $("tStartConfirm")); $("tStartConfirm").hidden = true; };
+  $("tUndo").onclick = () => hostAction({ action: "t-undo" }, $("tUndo"));
+  $("tEnd").onclick = () => { $("tEndConfirm").hidden = false; };
+  $("tEndConfirm").onclick = async () => { await hostAction({ action: "t-end" }, $("tEndConfirm")); $("tEndConfirm").hidden = true; };
 }
 
 load();
