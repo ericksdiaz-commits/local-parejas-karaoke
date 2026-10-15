@@ -26,7 +26,8 @@ export default async (req) => {
   const s = store();
 
   if (req.method === "GET") {
-    return json({ items: await listAll(s) });
+    const [items, tournament] = await Promise.all([listAll(s), s.get("t", { type: "json" })]);
+    return json({ items, tournament: tournament || null });
   }
 
   if (req.method !== "POST") return json({ error: "Método no permitido" }, 405);
@@ -71,7 +72,65 @@ export default async (req) => {
     return json({ ok: true });
   }
 
+  // Torneo: llaves de eliminación directa con los inscritos
+  if (body.action === "t-start") {
+    const all = await listAll(s);
+    const seen = new Set();
+    const entrants = [];
+    for (const i of all) {
+      const key = i.nombre.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      entrants.push({ nombre: i.nombre, cancion: i.cancion, artista: i.artista });
+    }
+    if (entrants.length < 2) return json({ error: "Se necesitan al menos 2 inscritos" }, 400);
+    for (let k = entrants.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [entrants[k], entrants[j]] = [entrants[j], entrants[k]];
+    }
+    const t = { status: "live", rounds: [pairUp(entrants)], champion: null, startedAt: Date.now() };
+    advance(t);
+    await s.setJSON("t", t);
+    return json({ ok: true });
+  }
+
+  if (body.action === "t-win") {
+    const t = await s.get("t", { type: "json" });
+    if (!t || t.status !== "live") return json({ error: "No hay torneo en curso" }, 400);
+    const round = t.rounds[t.rounds.length - 1];
+    const m = round[Number(body.match)];
+    if (!m || m.winner || !m.b) return json({ error: "Ese duelo ya se decidió" }, 400);
+    if (body.side !== "a" && body.side !== "b") return json({ error: "Elige un ganador" }, 400);
+    m.winner = body.side;
+    advance(t);
+    await s.setJSON("t", t);
+    return json({ ok: true });
+  }
+
+  if (body.action === "t-undo") {
+    const t = await s.get("t", { type: "json" });
+    if (!t) return json({ error: "No hay torneo" }, 400);
+    // Deshace la última decisión: si la ronda actual no tiene ganadores, vuelve a la anterior
+    let round = t.rounds[t.rounds.length - 1];
+    if (t.rounds.length > 1 && !round.some((m) => m.winner && m.b)) {
+      t.rounds.pop();
+      round = t.rounds[t.rounds.length - 1];
+    }
+    const decided = round.map((m, idx) => ({ m, idx })).filter((x) => x.m.winner && x.m.b);
+    if (!decided.length) return json({ error: "No hay nada que deshacer" }, 400);
+    decided[decided.length - 1].m.winner = null;
+    t.status = "live"; t.champion = null;
+    await s.setJSON("t", t);
+    return json({ ok: true });
+  }
+
+  if (body.action === "t-end") {
+    await s.delete("t");
+    return json({ ok: true });
+  }
+
   if (body.action === "reset") {
+    await s.delete("t");
     const { blobs } = await s.list({ prefix: "s/" });
     await Promise.all(blobs.map((b) => s.delete(b.key)));
     return json({ ok: true });
@@ -79,6 +138,27 @@ export default async (req) => {
 
   return json({ error: "Acción desconocida" }, 400);
 };
+
+// Empareja en orden; si sobra uno, pasa directo (bye)
+function pairUp(list) {
+  const round = [];
+  for (let k = 0; k < list.length; k += 2) {
+    const a = list[k], b = list[k + 1] || null;
+    round.push({ a, b, winner: b ? null : "a" });
+  }
+  return round;
+}
+
+// Si la ronda actual terminó, arma la siguiente o corona al campeón
+function advance(t) {
+  for (;;) {
+    const round = t.rounds[t.rounds.length - 1];
+    if (round.some((m) => !m.winner)) return;
+    const winners = round.map((m) => m[m.winner]);
+    if (winners.length === 1) { t.status = "done"; t.champion = winners[0]; return; }
+    t.rounds.push(pairUp(winners));
+  }
+}
 
 function strip(i) { const { id, ...rest } = i; return rest; }
 
