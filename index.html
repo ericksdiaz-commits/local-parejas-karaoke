@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Local Parejas, Noche de Karaoke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+:root{
+  --stage:#170f24; --panel:#221636; --panel-2:#2c1d45; --line:#3d2b5c;
+  --ink:#f6eefc; --muted:#b5a4cc; --bulb:#ffc34d; --spot:#ff5fa2; --ok:#6fe0b0;
+  --display:"Bungee","Arial Black",Impact,sans-serif;
+  --body:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--stage);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;min-height:100vh;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(48px + env(safe-area-inset-bottom,0px));
+  background-image:radial-gradient(ellipse 70% 40% at 50% -5%,rgba(255,95,162,.18),transparent 70%);
+}
+[hidden]{display:none!important}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:28px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.eyebrow{font-family:var(--display);font-size:clamp(16px,2.6vw,22px);color:var(--ink);letter-spacing:.06em;margin:0 0 8px}
+.marquee{font-family:var(--display);font-weight:400;font-size:clamp(34px,7vw,64px);line-height:.95;color:var(--bulb);text-shadow:0 0 18px rgba(255,195,77,.35);margin:0;text-wrap:balance}
+.marquee span{color:var(--spot);text-shadow:0 0 18px rgba(255,95,162,.4)}
+.bulbs{display:flex;gap:10px;margin-top:10px}
+.bulbs i{width:9px;height:9px;border-radius:50%;background:var(--bulb);box-shadow:0 0 8px var(--bulb);animation:blink 1.6s infinite}
+.bulbs i:nth-child(even){animation-delay:.8s}
+@keyframes blink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.bulbs i{animation:none}}
+.count{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.count b{font-family:var(--display);font-size:28px;color:var(--ink);letter-spacing:0;margin-right:6px;font-weight:400}
+
+.grid{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}.qr-card{order:3}.form-card{order:1}}
+.side{display:grid;gap:20px;min-width:0}
+@media (max-width:820px){.side{display:contents}}
+.main-col{display:grid;gap:20px;min-width:0}
+@media (max-width:820px){.main-col{order:2}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:0 0 12px;font-weight:600}
+
+.qr-card{text-align:center}
+.qr-box{background:#fff;border-radius:10px;padding:14px;display:inline-block;max-width:100%}
+#qr img,#qr canvas{display:block;width:100%;max-width:240px;height:auto}
+.qr-card h2{font-family:var(--display);font-weight:400;font-size:22px;margin:14px 0 4px;color:var(--bulb)}
+.qr-card p{margin:0;color:var(--muted);font-size:14px}
+.url{margin-top:8px!important;font-size:13px;word-break:break-all;color:var(--ink)!important}
+
+form{display:grid;gap:14px}
+.field{display:grid;gap:5px}
+.field label{font-size:14px;font-weight:600}
+input{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:13px 14px;width:100%}
+input::placeholder{color:#8a7aa3}
+input:focus-visible,button:focus-visible{outline:2px solid var(--bulb);outline-offset:2px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid transparent}
+.btn-main{font-family:var(--display);font-size:19px;background:var(--spot);color:#1a0b1f;padding:14px 16px}
+.btn-main:hover{filter:brightness(1.08)}
+.btn-main:disabled,.btn-ghost:disabled{opacity:.5;cursor:wait}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);padding:9px 13px;font-size:14px}
+.btn-ghost:hover{border-color:var(--muted)}
+.btn-gold{background:var(--bulb);color:#1a0b1f;font-weight:800;padding:11px 16px}
+.note{font-size:14px;margin:0;min-height:1.2em;color:var(--muted)}
+.note.good{color:var(--ok)} .note.bad{color:var(--spot)}
+
+.now{background:linear-gradient(135deg,var(--panel-2),var(--panel));border:1px solid var(--bulb);border-radius:14px;padding:22px;display:grid;gap:6px;
+  box-shadow:0 0 0 1px rgba(255,195,77,.15),0 0 40px rgba(255,195,77,.08)}
+.now .who{font-family:var(--display);font-size:clamp(26px,4.5vw,42px);line-height:1.05;color:var(--bulb);overflow-wrap:anywhere}
+.now .what{font-size:18px;overflow-wrap:anywhere}
+.now .what em{font-style:normal;color:var(--muted)}
+.now-empty{color:var(--muted)}
+
+.queue{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.row .n{font-family:var(--display);font-size:20px;color:var(--spot);text-align:center;font-variant-numeric:tabular-nums}
+.row .name{font-weight:800;overflow-wrap:anywhere}
+.row .song{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+.row.mine{border-color:var(--spot)}
+.tag{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--spot);margin-left:6px;font-weight:600}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--muted);text-align:center}
+
+.host-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.host-bar .spacer{flex:1}
+
+/* Modo pantalla (#pantalla): QR + cola en grande para proyectar */
+body.screen .form-card{display:none}
+body.screen .grid{grid-template-columns:minmax(0,420px) minmax(0,1fr)}
+body.screen #qr img,body.screen #qr canvas{max-width:340px}
+body.screen .row .name{font-size:22px}
+body.screen .row .song{font-size:17px}
+body.screen .now .who{font-size:clamp(34px,5vw,60px)}
+body.screen .now .what{font-size:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Local Parejas</p>
+      <h1 class="marquee">Noche de <span>Karaoke</span></h1>
+      <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="count"><b id="waitingCount">0</b>en cola</div>
+  </header>
+
+  <div class="grid">
+    <aside class="side">
+      <section class="card qr-card" aria-labelledby="qrTitle">
+        <div class="qr-box"><div id="qr" role="img" aria-label="Código QR para anotarse"></div></div>
+        <h2 id="qrTitle">Escanea y anótate</h2>
+        <p>Apunta la cámara del celular al código</p>
+        <p class="url" id="siteUrl"></p>
+      </section>
+
+      <section class="card form-card" aria-labelledby="formTitle">
+        <p class="label" id="formTitle">Quiero cantar</p>
+        <form id="signup" autocomplete="off">
+          <div class="field">
+            <label for="fName">Tu nombre</label>
+            <input id="fName" maxlength="40" required placeholder="Ej. Camila y Andrés">
+          </div>
+          <div class="field">
+            <label for="fSong">Canción</label>
+            <input id="fSong" maxlength="80" required placeholder="Ej. Ojalá que llueva café">
+          </div>
+          <div class="field">
+            <label for="fArtist">Artista</label>
+            <input id="fArtist" maxlength="60" placeholder="Ej. Juan Luis Guerra">
+          </div>
+          <button class="btn-main" id="submitBtn" type="submit">Anotarme</button>
+          <p class="note" id="formNote" aria-live="polite"></p>
+        </form>
+      </section>
+    </aside>
+
+    <main class="main-col">
+      <section class="card" id="hostPanel" hidden aria-label="Controles del anfitrión">
+        <p class="label">Anfitrión</p>
+        <form id="pinForm" class="host-bar">
+          <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" style="max-width:160px">
+          <button class="btn-ghost" type="submit">Entrar</button>
+          <p class="note" id="pinNote"></p>
+        </form>
+        <div class="host-bar" id="hostTools" hidden>
+          <button class="btn-gold" id="nextBtn" type="button">Siguiente turno</button>
+          <span class="spacer"></span>
+          <button class="btn-ghost" id="resetBtn" type="button">Vaciar lista</button>
+          <button class="btn-ghost" id="resetConfirm" type="button" hidden>Sí, borrar todo</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="nowTitle">
+        <p class="label" id="nowTitle">En el micrófono</p>
+        <div class="now" id="now"><div class="now-empty">Cargando la lista…</div></div>
+      </section>
+
+      <section aria-labelledby="queueTitle">
+        <p class="label" id="queueTitle">Próximos turnos</p>
+        <ol class="queue" id="queue"></ol>
+        <div class="empty" id="queueEmpty" hidden>La cola está vacía. Escanea el QR y anótate.</div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const API = "/api/queue";
+const siteUrl = location.origin + "/";
+const isScreen = location.hash === "#pantalla";
+const isHost = location.hash === "#host";
+if (isScreen) document.body.classList.add("screen");
+
+let items = [];
+let pin = "";
+let mine = new Set();
+try { mine = new Set(JSON.parse(localStorage.getItem("karaoke-mine") || "[]")); } catch (e) {}
+try { pin = sessionStorage.getItem("karaoke-pin") || ""; } catch (e) {}
+const saveMine = () => { try { localStorage.setItem("karaoke-mine", JSON.stringify([...mine])); } catch (e) {} };
+
+// QR
+$("siteUrl").textContent = siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+try { new QRCode($("qr"), { text: siteUrl, width: 520, height: 520, colorDark: "#170f24", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M }); }
+catch (e) { $("qr").textContent = siteUrl; }
+
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+function render() {
+  const singing = items.find(i => i.status === "singing");
+  const waiting = items.filter(i => i.status === "waiting");
+  $("waitingCount").textContent = waiting.length;
+
+  const now = $("now"); now.replaceChildren();
+  if (singing) {
+    now.append(el("div", "who", singing.nombre));
+    const w = el("div", "what", singing.cancion);
+    if (singing.artista) { w.append(" "); w.append(el("em", null, "· " + singing.artista)); }
+    now.append(w);
+  } else {
+    now.append(el("div", "now-empty", waiting.length ? "Listos para empezar." : "Nadie todavía. El primero en anotarse abre la noche."));
+  }
+
+  const q = $("queue"); q.replaceChildren();
+  waiting.forEach((i, idx) => {
+    const li = el("li", "row" + (mine.has(i.id) ? " mine" : ""));
+    li.append(el("div", "n", String(idx + 1)));
+    const mid = el("div"); const nm = el("div", "name", i.nombre);
+    if (mine.has(i.id)) nm.append(el("span", "tag", "tú"));
+    mid.append(nm, el("div", "song", i.cancion + (i.artista ? " · " + i.artista : "")));
+    li.append(mid);
+    const tools = el("div");
+    if (hostOn) {
+      const b = el("button", "btn-ghost", "Quitar"); b.type = "button";
+      b.onclick = () => hostAction({ action: "remove", id: i.id }, b);
+      tools.append(b);
+    }
+    li.append(tools);
+    q.append(li);
+  });
+  $("queueEmpty").hidden = waiting.length > 0;
+}
+
+async function load() {
+  try {
+    const r = await fetch(API, { cache: "no-store" });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    items = d.items || [];
+    render();
+  } catch (e) {
+    if (!items.length) { $("now").replaceChildren(el("div", "now-empty", "No se pudo cargar la lista. Reintentando…")); }
+  }
+}
+
+// Registro
+$("signup").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const nombre = $("fName").value.trim(), cancion = $("fSong").value.trim(), artista = $("fArtist").value.trim();
+  const note = $("formNote");
+  if (!nombre || !cancion) { note.className = "note bad"; note.textContent = "Escribe tu nombre y la canción."; return; }
+  $("submitBtn").disabled = true; note.className = "note"; note.textContent = "Anotando…";
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nombre, cancion, artista }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "No se pudo anotar");
+    mine.add(d.id); saveMine();
+    $("fSong").value = ""; $("fArtist").value = "";
+    note.className = "note good"; note.textContent = "¡Listo, " + nombre + "! Ya estás en la cola.";
+    await load();
+  } catch (e) {
+    note.className = "note bad"; note.textContent = e.message + ". Intenta de nuevo.";
+  } finally { $("submitBtn").disabled = false; }
+});
+
+// Anfitrión (#host)
+let hostOn = false;
+async function hostAction(body, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, pin }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Error");
+    await load();
+    return true;
+  } catch (e) {
+    $("pinNote").className = "note bad"; $("pinNote").textContent = e.message;
+    return false;
+  } finally { if (btn) btn.disabled = false; }
+}
+async function unlock() {
+  const ok = await hostAction({ action: "check" });
+  if (ok) {
+    hostOn = true;
+    try { sessionStorage.setItem("karaoke-pin", pin); } catch (e) {}
+    $("pinForm").hidden = true; $("hostTools").hidden = false; $("pinNote").textContent = "";
+    render();
+  }
+}
+if (isHost) {
+  $("hostPanel").hidden = false;
+  $("pinForm").addEventListener("submit", ev => { ev.preventDefault(); pin = $("pinInput").value.trim(); unlock(); });
+  if (pin) unlock();
+  $("nextBtn").onclick = () => hostAction({ action: "next" }, $("nextBtn"));
+  $("resetBtn").onclick = () => { $("resetConfirm").hidden = false; };
+  $("resetConfirm").onclick = async () => { await hostAction({ action: "reset" }, $("resetConfirm")); $("resetConfirm").hidden = true; };
+}
+
+load();
+setInterval(() => { if (!document.hidden) load(); }, 4000);
+</script>
+</body>
+</html>
