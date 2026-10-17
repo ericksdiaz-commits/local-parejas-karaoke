@@ -23,7 +23,40 @@ body{
   background-image:radial-gradient(ellipse 70% 40% at 50% -5%,rgba(255,95,162,.18),transparent 70%);
 }
 [hidden]{display:none!important}
-.wrap{max-width:1120px;margin:0 auto;display:grid;gap:28px}
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:28px;position:relative;z-index:1}
+
+/* Animaciones */
+.eq{display:inline-flex;gap:3px;align-items:flex-end;height:16px;margin-left:10px;vertical-align:-2px}
+.eq i{width:4px;height:100%;border-radius:2px;background:var(--spot);transform-origin:bottom;animation:eq .8s ease-in-out infinite alternate}
+.eq i:nth-child(2){animation-duration:.55s;background:var(--bulb)}
+.eq i:nth-child(3){animation-duration:.95s}
+.eq i:nth-child(4){animation-duration:.65s;background:var(--ok)}
+.eq i:nth-child(5){animation-duration:.75s;background:var(--bulb)}
+@keyframes eq{0%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
+.mic{width:15px;height:15px;vertical-align:-2px;margin-right:6px;color:var(--spot)}
+.now.live{animation:glow 2.6s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 1px rgba(255,195,77,.3),0 0 70px rgba(255,195,77,.22)}}
+.who.pop{animation:pop .8s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{0%{opacity:0;transform:scale(.6) rotate(-3deg)}100%{opacity:1;transform:none}}
+.row.enter{animation:slideIn .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes slideIn{from{opacity:0;transform:translateX(28px)}}
+.count b.bump{display:inline-block;animation:bump .5s ease}
+@keyframes bump{40%{transform:scale(1.5);color:var(--bulb)}}
+.vs .mark{animation:vsPulse 1.3s ease-in-out infinite}
+@keyframes vsPulse{50%{transform:scale(1.15);text-shadow:0 0 30px rgba(255,95,162,.9)}}
+.vs.enter .side-a{animation:fromL .6s cubic-bezier(.2,.8,.2,1) both}
+.vs.enter .side-b{animation:fromR .6s cubic-bezier(.2,.8,.2,1) both}
+.vs.enter .mark{animation:slam .6s cubic-bezier(.2,1.6,.4,1) both,vsPulse 1.3s ease-in-out .6s infinite}
+@keyframes fromL{from{opacity:0;transform:translateX(-60px)}}
+@keyframes fromR{from{opacity:0;transform:translateX(60px)}}
+@keyframes slam{from{opacity:0;transform:scale(3)}}
+.champ.enter{animation:pop 1s cubic-bezier(.2,1.4,.4,1)}
+.champ .who{animation:shine 2.2s linear infinite;background:linear-gradient(90deg,var(--bulb) 0%,#fff6d8 50%,var(--bulb) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes shine{to{background-position:-200% 0}}
+.marquee{animation:flicker 7s infinite}
+@keyframes flicker{0%,92%,100%{opacity:1}93%{opacity:.6}94%{opacity:1}96%{opacity:.75}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}#fx{display:none}}
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
 .eyebrow{font-family:var(--display);font-size:clamp(16px,2.6vw,22px);color:var(--ink);letter-spacing:.06em;margin:0 0 8px}
 .marquee{font-family:var(--display);font-weight:400;font-size:clamp(34px,7vw,64px);line-height:.95;color:var(--bulb);text-shadow:0 0 18px rgba(255,195,77,.35);margin:0;text-wrap:balance}
@@ -125,6 +158,7 @@ body.screen .now .what{font-size:24px}
 </style>
 </head>
 <body>
+<canvas id="fx" aria-hidden="true"></canvas>
 <div class="wrap">
   <header>
     <div>
@@ -198,7 +232,7 @@ body.screen .now .what{font-size:24px}
       </section>
 
       <section aria-labelledby="nowTitle" id="nowSection">
-        <p class="label" id="nowTitle">En el micrófono</p>
+        <p class="label" id="nowTitle"><svg class="mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>En el micrófono<span class="eq" id="eq" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></p>
         <div class="now" id="now"><div class="now-empty">Cargando la lista…</div></div>
       </section>
 
@@ -235,24 +269,129 @@ catch (e) { $("qr").textContent = siteUrl; }
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
+// Efectos de fondo: luces de escenario, notas flotando y confeti
+const fx = (() => {
+  const c = $("fx"), ctx = c.getContext("2d");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const COLORS = ["#ffc34d", "#ff5fa2", "#6fe0b0", "#b58cff"];
+  const pick = () => COLORS[Math.random() * COLORS.length | 0];
+  let W = 0, H = 0;
+  function size() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = innerWidth; H = innerHeight;
+    c.width = W * dpr; c.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size(); addEventListener("resize", size);
+
+  const note = init => ({
+    x: Math.random() * W, y: init ? Math.random() * H : H + 40,
+    s: 16 + Math.random() * 26, v: .3 + Math.random() * .6, ph: Math.random() * 6.28,
+    g: Math.random() < .5 ? "♪" : "♫", c: pick(), o: .12 + Math.random() * .2
+  });
+  const notes = Array.from({ length: isScreen ? 26 : 14 }, () => note(true));
+  let bits = [];
+
+  function burst(n = 120, x = W / 2, y = H * .35) {
+    if (reduce) return;
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2, sp = 4 + Math.random() * 10;
+      bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 6, r: Math.random() * 6.28, vr: (Math.random() - .5) * .35,
+        w: 6 + Math.random() * 6, h: 9 + Math.random() * 8, c: pick(), life: 0 });
+    }
+  }
+  function rain(n = 160) {
+    if (reduce) return;
+    for (let k = 0; k < n; k++) {
+      bits.push({ x: Math.random() * W, y: -20 - Math.random() * H * .6, vx: (Math.random() - .5) * 2, vy: 2 + Math.random() * 3,
+        r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, h: 9 + Math.random() * 8, c: pick(), life: 0 });
+    }
+  }
+
+  function beam(x, ang, col) {
+    const len = H * 1.25, half = Math.tan(.2) * len;
+    ctx.save(); ctx.translate(x, -30); ctx.rotate(ang);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, col); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.lineTo(half, len); ctx.lineTo(-half, len); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(40, t - last) / 16.67; last = t;
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";
+    const sw = Math.sin(t / 2800), sw2 = Math.sin(t / 3400 + 1.3);
+    beam(W * .12, -.35 * sw - .1, "rgba(255,95,162,.13)");
+    beam(W * .88, .35 * sw2 + .1, "rgba(255,195,77,.10)");
+    if (W > 700) beam(W * .5, .25 * Math.sin(t / 4100), "rgba(181,140,255,.07)");
+    ctx.globalCompositeOperation = "source-over";
+
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let k = 0; k < notes.length; k++) {
+      const n = notes[k];
+      n.y -= n.v * dt; n.ph += .02 * dt;
+      if (n.y < -40) notes[k] = note(false);
+      ctx.globalAlpha = n.o; ctx.fillStyle = n.c;
+      ctx.font = n.s + "px 'Bricolage Grotesque', system-ui, sans-serif";
+      ctx.fillText(n.g, n.x + Math.sin(n.ph) * 18, n.y);
+    }
+    ctx.globalAlpha = 1;
+
+    bits = bits.filter(b => b.y < H + 40 && b.life < 600);
+    for (const b of bits) {
+      b.vy += .25 * dt; b.vx *= .99; b.x += b.vx * dt; b.y += b.vy * dt; b.r += b.vr * dt; b.life += dt;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r);
+      ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2 * Math.abs(Math.cos(b.life * .15)), b.w, b.h * Math.abs(Math.cos(b.life * .15)) + 1);
+      ctx.restore();
+    }
+    requestAnimationFrame(frame);
+  }
+  if (!reduce) requestAnimationFrame(frame);
+  return { burst, rain };
+})();
+
+// Estado previo para animar solo lo que cambia
+const seen = new Set();
+let firstRender = true, lastSingingId = null, lastCount = -1;
+let lastVsKey = null, lastChampKey = null, lastDecided = -1;
+
 function render() {
   const singing = items.find(i => i.status === "singing");
   const waiting = items.filter(i => i.status === "waiting");
-  $("waitingCount").textContent = waiting.length;
+  const cnt = $("waitingCount");
+  cnt.textContent = waiting.length;
+  if (lastCount >= 0 && waiting.length !== lastCount) { cnt.classList.remove("bump"); void cnt.offsetWidth; cnt.classList.add("bump"); }
+  lastCount = waiting.length;
 
   const now = $("now"); now.replaceChildren();
+  now.classList.toggle("live", !!singing);
+  $("eq").hidden = !singing;
   if (singing) {
-    now.append(el("div", "who", singing.nombre));
+    const who = el("div", "who", singing.nombre);
+    if (singing.id !== lastSingingId) {
+      who.classList.add("pop");
+      if (!firstRender) { const r = now.getBoundingClientRect(); fx.burst(70, r.left + r.width / 2, r.top + 30); }
+    }
+    now.append(who);
     const w = el("div", "what", singing.cancion);
     if (singing.artista) { w.append(" "); w.append(el("em", null, "· " + singing.artista)); }
     now.append(w);
   } else {
     now.append(el("div", "now-empty", waiting.length ? "Listos para empezar." : "Nadie todavía. El primero en anotarse abre la noche."));
   }
+  lastSingingId = singing ? singing.id : null;
 
   const q = $("queue"); q.replaceChildren();
   waiting.forEach((i, idx) => {
     const li = el("li", "row" + (mine.has(i.id) ? " mine" : ""));
+    if (!seen.has(i.id)) {
+      li.classList.add("enter");
+      if (firstRender) li.style.animationDelay = Math.min(idx, 12) * 70 + "ms";
+      seen.add(i.id);
+    }
     li.append(el("div", "n", String(idx + 1)));
     const mid = el("div"); const nm = el("div", "name", i.nombre);
     if (mine.has(i.id)) nm.append(el("span", "tag", "tú"));
@@ -268,6 +407,7 @@ function render() {
     q.append(li);
   });
   $("queueEmpty").hidden = waiting.length > 0;
+  firstRender = false;
 }
 
 async function load() {
@@ -298,6 +438,7 @@ $("signup").addEventListener("submit", async ev => {
     mine.add(d.id); saveMine();
     $("fSong").value = ""; $("fArtist").value = "";
     note.className = "note good"; note.textContent = "¡Listo, " + nombre + "! Ya estás en la cola.";
+    { const r = $("submitBtn").getBoundingClientRect(); fx.burst(80, r.left + r.width / 2, r.top); }
     await load();
   } catch (e) {
     note.className = "note bad"; note.textContent = e.message + ". Intenta de nuevo.";
@@ -320,20 +461,31 @@ function renderTournament() {
     $("tUndo").hidden = !on; $("tEnd").hidden = !on;
     if (!on) $("tEndConfirm").hidden = true;
   }
-  if (!on) return;
+  if (!on) { lastVsKey = null; lastChampKey = null; lastDecided = -1; return; }
 
   const stage = $("tStage"); stage.replaceChildren();
   const last = tour.rounds[tour.rounds.length - 1];
   const curIdx = last.findIndex(m => !m.winner);
 
+  // Confeti cuando se decide un duelo
+  const decided = tour.rounds.flat().filter(m => m.b && m.winner).length;
+  const firstT = lastDecided === -1;
+  if (!firstT && decided > lastDecided && tour.status !== "done") fx.burst(90);
+  lastDecided = decided;
+
   if (tour.status === "done" && tour.champion) {
-    const c = el("div", "champ");
+    const champKey = tour.startedAt + ":" + tour.champion.nombre;
+    const c = el("div", "champ" + (champKey !== lastChampKey ? " enter" : ""));
+    if (champKey !== lastChampKey && !firstT) { fx.rain(220); fx.burst(160); }
+    lastChampKey = champKey;
     c.append(el("div", "crown", "Campeón de la noche"), el("div", "who", tour.champion.nombre));
     c.append(el("div", "now-empty", tour.champion.cancion + (tour.champion.artista ? " · " + tour.champion.artista : "")));
     stage.append(c);
   } else if (curIdx >= 0) {
     const m = last[curIdx];
-    const vs = el("div", "vs");
+    const vsKey = tour.startedAt + ":" + tour.rounds.length + ":" + curIdx;
+    const vs = el("div", "vs" + (vsKey !== lastVsKey ? " enter" : ""));
+    lastVsKey = vsKey;
     const side = (p, key, cls) => {
       const d = el("div", cls);
       d.append(el("div", "who", p.nombre), el("div", "what", p.cancion + (p.artista ? " · " + p.artista : "")));
